@@ -286,27 +286,42 @@ def run_task(task: str, expected_result: str = None, minimize: bool = False,
         # --- Local mode ---
         # Local inference (MLX + cider) is Apple Silicon only. Fail fast on
         # Windows / Linux so users don't sit through a doomed pip install.
-        if platform.system() != "Darwin":
-            print("Error: --local mode requires macOS with Apple Silicon (mlx-vlm + cider).")
-            print("On Windows / Linux, use cloud mode (omit --local).")
-            return 2
-        try:
-            from visual.agents.local import LocalAgent
-        except ImportError as e:
-            print(f"Error: Local mode dependencies not available: {e}")
-            print("Run: mano-cua install-sdk")
-            return 1
-
-        resolved_path = model_path
-        if not resolved_path:
-            from visual.config.user_config import get_config
-            resolved_path = get_config("default-model-path")
-        if not resolved_path:
-            print("Error: No model path specified. Use --model-path or run:")
+        if platform.system() == "Darwin":
+            try:
+                from visual.agents.local import LocalAgent
+            except ImportError as e:
+                print(f"Error: Local mode dependencies not available: {e}")
+                print("Run: mano-cua install-sdk")
+                return 1
+            resolved_path = model_path
+            if not resolved_path:
+                from visual.config.user_config import get_config
+                resolved_path = get_config("default-model-path")
+            if not resolved_path:
+                print("Error: No model path specified. Use --model-path or run:")
+                print("  mano-cua config --set default-model-path ~/path/to/model")
+                return 1
+            agent = LocalAgent(model_path=resolved_path)
+        elif platform.system() == "Windows":
+            try:
+                from visual.agents.llamalocal import LocalAgent
+            except ImportError as e:
+                print(f"Error: Local mode dependencies not available: {e}")
+                print("Run: mano-cua install-sdk")
+                return 1
+            resolved_path = model_path
+            if not resolved_path:
+                from visual.config.user_config import get_config
+                resolved_path = get_config("default-model-path")
+            if not resolved_path:
+                print("Error: No model path specified. Use --model-path or run:")
+                print("  mano-cua config --set default-model-path ~/path/to/model")
+                return 1
+            agent = LocalAgent(model_path=resolved_path)
+        else:
+            print(f"Error: current system {platform.system()} not support local mode")
             print("  mano-cua config --set default-model-path ~/path/to/model")
-            return 1
-
-        agent = LocalAgent(model_path=resolved_path)
+            return 2
     else:
         # --- Cloud mode (default, existing behavior) ---
         device_id = get_or_create_device_id()
